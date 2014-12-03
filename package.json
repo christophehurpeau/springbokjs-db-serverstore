@@ -5,23 +5,23 @@
     "springbokjs",
     "springbokjs-db"
   ],
-  "version": "0.0.3",
+  "version": "0.1.0",
   "homepage": "http://springbokjs.org",
   "license": "MIT",
   "author": "Christophe Hurpeau <christophe@hurpeau.com> (http://christophe.hurpeau.com/)",
-  "repository": "git://github.com/christophehurpeau/springbokjs-db.git",
+  "repository": "git://github.com/christophehurpeau/springbokjs-db-serverstore.git",
   "scripts": {
     "test": "node_modules/.bin/mocha --harmony --recursive -u tdd tests/lib"
   },
   "main": "./lib/index.js",
   "peerDependencies": {
-    "springbokjs-browser": "*",
-    "springbokjs-db": "*"
+    "springbokjs-browser": "^0.2",
+    "springbokjs-db": "^0.1"
   },
   "devDependencies": {
     "gulp": "^3.8",
     "mocha": "^2.0",
     "proclaim": "^2.0",
-    "springbokjs-library": "^3.1.0"
+    "springbokjs-library": "^3.3.1"
   }
 }
