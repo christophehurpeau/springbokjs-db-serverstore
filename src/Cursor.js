@@ -1,15 +1,10 @@
 var AbstractCursor = require('springbokjs-db/lib/AbstractCursor').AbstractCursor;
 var webSocket = require('springbokjs-browser/webSocket');
 
-var _nextPromise = function() {
-    return webSocket.emit('db cursor ' + this._idCursor, 'next');
-};
-
 export class Cursor extends AbstractCursor {
     constructor(idCursor, store) {
         this._idCursor = idCursor;
         this._store = store;
-        this._nextPromise = _nextPromise.call(this);
     }
 
     advance(count) {
@@ -18,8 +13,7 @@ export class Cursor extends AbstractCursor {
     }
 
     next() {
-        return this._nextPromise.then((result) => {
-            this._nextPromise = _nextPromise.call(this); // setImmediate is not really supported in browsers...
+        return webSocket.emit('db cursor ' + this._idCursor, 'next').then((result) => {
             this._result = result;
             this.primaryKey = this.key = result && result[this._store.keyPath];
             return this.key;
