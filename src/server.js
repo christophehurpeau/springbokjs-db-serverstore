@@ -40,11 +40,16 @@ exports.initialize = function(io, serverStore) {
                         //socket.off('db cursor ' + idCursor);
                     }, 5 * 60 * 1000);
 
-                    // TODO timeouts
+                    var nextPromise = cursor.next();
                     socket.on('db cursor ' + idCursor, (instruction, response) => {
                         console.log('db cursor ' + idCursor + ' ' + instruction);
                         if (instruction === 'next') {
-                            cursor.next().then((key) => {
+                            nextPromise.then((key) => {
+                                nextPromise = new Promise(function(resolve, reject) {
+                                    setImmediate(function() {
+                                        cursor.next().then(resolve, reject);
+                                    });
+                                });
                                 if (!key) {
                                     return response(null);
                                 }
