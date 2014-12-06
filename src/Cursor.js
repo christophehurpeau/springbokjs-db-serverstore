@@ -29,19 +29,21 @@ export class Cursor extends AbstractCursor {
     }
 
     forEachKeys(callback) {
-        var cursor = this;
-        return (function _callback() {
-            return cursor.next().then((key) => {
-                if (!key) {
-                    return cursor.close();
-                }
-                return callback(key);
-            }).then(() => {
-                if (cursor.key) {
-                    return _callback();
-                }
+        var promise = Promise.resolve();
+        webSocket.on('db cursor forEach ' + this._idCursor, (result) => {
+            if (!result) {
+                return promise.then(() => this.close()).then(resolve);
+            }
+            promise.then(() => {
+                this._result = result;
+                this.primaryKey = this.key = result && result[this._store.keyPath];
+                return callback(this.key);
             });
-        })();
+        });
+        return webSocket.emit('db cursor ' + this._idCursor, 'forEach').then(() => {
+            webSocket.off('db cursor forEach ' + this._idCursor);
+            return promise;
+        });
     }
 
     close() {

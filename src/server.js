@@ -30,6 +30,7 @@ exports.initialize = function(io, serverStore) {
                 }
                 // TODO cursor.isEmpty()
                 var count = cursor.count().then((count) => {
+                    // console.log(idCursor, 'count = ', count);
                     if (!count) {
                         cursor.close();
                         return response(null);
@@ -54,10 +55,16 @@ exports.initialize = function(io, serverStore) {
                             }, () => {
                                 response(null);
                             });
+                        } else if (instruction === 'forEach') {
+                            cursor.forEachResults(function(result) {
+                                socket.emit('db cursor forEach ' + idCursor, result && restService.transform(result));
+                            }).then(function() {
+                                response(null);
+                            });
                         } else if (instruction === 'close') {
                             clearTimeout(closeTimeout);
                             cursor.close();
-                            //socket.off('db cursor ' + idCursor);
+                            socket.off('db cursor ' + idCursor);
                             response(null);
                         } else if (instruction === 'advance') {
                             cursor.advance().then(() => response(null));
