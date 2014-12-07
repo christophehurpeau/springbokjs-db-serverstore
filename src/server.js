@@ -2,6 +2,20 @@ var y = require('yielded');
 
 exports.initialize = function(io, serverStore) {
     io.on('connection', function(socket) {
+        var openCursors = [], activeListeners = [];
+
+        socket.on('disconnect', function() {
+            openCursors.forEach((cursor) => {
+                cursor.close();
+            });
+            openCursors = null;
+
+            activeListeners.forEach((listener) => {
+                listener.service.unsubscribe(listener.activeListeners);
+            });
+            activeListeners = null;
+        });
+
         socket.on('connectedUser', function(response) {
             var userRestService = serverStore.restService('user');
             userRestService.findConnected(socket.connectedUser).then((user) => {
@@ -38,7 +52,8 @@ exports.initialize = function(io, serverStore) {
                     var closeTimeout = setTimeout(function() {
                         console.log('cursor closed by timeout ' + idCursor);
                         cursor.close();
-                        //socket.off('db cursor ' + idCursor);
+                        openCursors.splice(openCursors.indexOf(cursor), 1);
+                        socket.removeAllListeners('db cursor ' + idCursor);
                     }, 5 * 60 * 1000);
 
                     // TODO timeouts
@@ -64,7 +79,8 @@ exports.initialize = function(io, serverStore) {
                         } else if (instruction === 'close') {
                             clearTimeout(closeTimeout);
                             cursor.close();
-                            socket.off('db cursor ' + idCursor);
+                            openCursors.splice(openCursors.indexOf(cursor), 1);
+                            socket.removeAllListeners('db cursor ' + idCursor);
                             response(null);
                         } else if (instruction === 'advance') {
                             cursor.advance().then(() => response(null));
@@ -95,6 +111,37 @@ exports.initialize = function(io, serverStore) {
             }).catch((err) => {
                 response(err);
             });
+        });
+
+        var nextIdListener = 1;
+        socket.on('subscribe', function(dbName, modelName, query, response) {
+            var idListener = nextIdListener++;
+            var restService = serverStore.restService(modelName);
+            var listeners = {
+                query: restService.query(socket.connectedUser, query),
+                inserted: function(vo) {
+                    console.log('sending insert', idListener);
+                    socket.emit(idListener + ' event', { type: 'inserted', data: restService.transform(vo.data)});
+                },
+                updated: function(vo) {
+                    console.log('sending update', idListener);
+                    socket.emit(idListener + ' event', { type: 'updated', data: restService.transform(vo.data) });
+                },
+                deleted: function(vo) {
+                    console.log('sending delete', idListener);
+                    socket.emit(idListener + ' event', { type: 'deleted', data: restService.transform(vo.data) });
+                },
+            };
+            console.log('scoket subscribing ', listeners);
+            restService.service.subscribe(listeners);
+            var activeListener = { service: restService.service, listeners: listeners };
+            activeListeners.push(activeListener);
+            socket.on('unsubscribe ' + idListener, function(response) {
+                restService.service.unsubscribe(listeners);
+                activeListeners.splice(activeListeners.indexOf(activeListener), 1);
+                response(null);
+            });
+            response(null, idListener);
         });
     });
 };

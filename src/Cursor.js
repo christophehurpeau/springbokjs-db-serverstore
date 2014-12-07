@@ -2,9 +2,14 @@ var AbstractCursor = require('springbokjs-db/lib/AbstractCursor').AbstractCursor
 var webSocket = require('springbokjs-browser/webSocket');
 
 export class Cursor extends AbstractCursor {
-    constructor(idCursor, store) {
+    constructor(idCursor, store, query) {
         this._idCursor = idCursor;
         this._store = store;
+        this._query = query;
+    }
+
+    get query() {
+        return this._query;
     }
 
     advance(count) {

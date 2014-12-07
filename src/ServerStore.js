@@ -37,8 +37,28 @@ export class ServerStore extends AbstractStore {
             if (!idCursor) {
                 return;
             }
-            return new Cursor(idCursor, this);
+            return new Cursor(idCursor, this, query);
         });
+    }
+
+    subscribe(listeners) {
+        var modelName = this.manager.VO.name[0].toLowerCase() + this.manager.VO.name.substr(1)
+        return webSocket.emit('subscribe', this.db.dbName, modelName, listeners.query).then((listenerId) => {
+            listeners.listenerId = listenerId;
+            console.log('listing for: ' + listenerId + ' event')
+            webSocket.on(listenerId + ' event', (result) => {
+                var { type, data } = result;
+                console.log('received event', type, data);
+                if (listeners[type]) {
+                    listeners[type](this.toVO(data));
+                }
+            });
+        });
+    }
+
+    unsubscribe(listeners) {
+        webSocket.off(listeners.listenerId + ' event');
+        return webSocket.emit('unsubscribe ' + listeners.listenerId);
     }
 }
 
