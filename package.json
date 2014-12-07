@@ -5,7 +5,7 @@
     "springbokjs",
     "springbokjs-db"
   ],
-  "version": "0.1.4",
+  "version": "0.1.5",
   "homepage": "http://springbokjs.org",
   "license": "MIT",
   "author": "Christophe Hurpeau <christophe@hurpeau.com> (http://christophe.hurpeau.com/)",
@@ -15,7 +15,7 @@
   },
   "main": "./lib/index.js",
   "peerDependencies": {
-    "springbokjs-browser": "^0.2",
+    "springbokjs-browser": "^0.3",
     "springbokjs-db": "^0.1"
   },
   "devDependencies": {
