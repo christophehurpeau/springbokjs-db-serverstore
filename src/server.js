@@ -2,16 +2,22 @@ var y = require('yielded');
 
 exports.initialize = function(io, serverStore) {
     io.on('connection', function(socket) {
-        var openCursors = [], activeListeners = [];
+        var openCursors = {}, timeouts = {}, activeListeners = {};
 
         socket.on('disconnect', function() {
-            openCursors.forEach((cursor) => {
-                cursor.close();
+            Object.keys(openCursors).forEach((cursorKey) => {
+                openCursors[cursorKey].close();
             });
             openCursors = null;
 
-            activeListeners.forEach((listener) => {
-                listener.service.unsubscribe(listener.activeListeners);
+            Object.keys(timeouts).forEach((timeoutKey) => {
+                clearTimeout(timeouts[timeoutKey]);
+            });
+            timeouts = null;
+
+            Object.keys(activeListeners).forEach((activeListenerKey) => {
+                var activeListener = activeListeners[activeListenerKey];
+                activeListener.service.unsubscribe(activeListener.listeners);
             });
             activeListeners = null;
         });
@@ -49,12 +55,19 @@ exports.initialize = function(io, serverStore) {
                         cursor.close();
                         return response(null);
                     }
+                    var closeCursor = function() {
+                        cursor.close();
+                        delete openCursors[idCursor];
+                        delete timeouts[idCursor];
+                        socket.removeAllListeners('db cursor ' + idCursor);
+                    };
+
                     var closeTimeout = setTimeout(function() {
                         console.log('cursor closed by timeout ' + idCursor);
-                        cursor.close();
-                        openCursors.splice(openCursors.indexOf(cursor), 1);
-                        socket.removeAllListeners('db cursor ' + idCursor);
+                        closeCursor();
                     }, 5 * 60 * 1000);
+                    openCursors[idCursor] = cursor;
+                    timeouts[idCursor] = closeTimeout;
 
                     // TODO timeouts
                     socket.on('db cursor ' + idCursor, (instruction, response) => {
@@ -78,9 +91,7 @@ exports.initialize = function(io, serverStore) {
                             });
                         } else if (instruction === 'close') {
                             clearTimeout(closeTimeout);
-                            cursor.close();
-                            openCursors.splice(openCursors.indexOf(cursor), 1);
-                            socket.removeAllListeners('db cursor ' + idCursor);
+                            closeCursor();
                             response(null);
                         } else if (instruction === 'advance') {
                             cursor.advance().then(() => response(null));
@@ -134,11 +145,11 @@ exports.initialize = function(io, serverStore) {
             };
             console.log('scoket subscribing ', listeners);
             restService.service.subscribe(listeners);
-            var activeListener = { service: restService.service, listeners: listeners };
-            activeListeners.push(activeListener);
+            activeListeners[idListener] = { service: restService.service, listeners: listeners };
             socket.on('unsubscribe ' + idListener, function(response) {
+                console.log('scoket unsubscribing ', listeners);
                 restService.service.unsubscribe(listeners);
-                activeListeners.splice(activeListeners.indexOf(activeListener), 1);
+                delete activeListeners[idListener];
                 response(null);
             });
             response(null, idListener);
